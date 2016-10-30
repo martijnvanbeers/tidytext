@@ -7,24 +7,30 @@ library(dplyr)
 
 nrc_lexicon <- readr::read_tsv("data-raw/NRC-emotion-lexicon-wordlevel-alphabetized-v0.92.txt.zip",
                                col_names = FALSE, skip = 46)
-nrc_lexicon <- nrc_lexicon %>% filter(X3 == 1) %>%
-  select(word = X1, sentiment = X2) %>%
-  mutate(lexicon = "nrc")
+nrc_lexicon <- nrc_lexicon %>% tidyr::spread(X2, X3) %>%
+  rename(word = X1) %>%
+  mutate(polarity = ifelse(negative == 1, -1, ifelse(positive == 1, 1, NA))) %>%
+  select(-negative, -positive) %>%
+  tidyr::gather("emotion", "value", -word, -polarity) %>%
+  filter(value == 1) %>%
+  select(-value) %>%
+  mutate(score = abs(polarity), lexicon = "nrc") %>%
+  arrange(word)
 
 bing_lexicon1 <- readr::read_lines("data-raw/positive-words.txt",
                                    skip = 35)
 bing_lexicon2 <- readr::read_lines("data-raw/negative-words.txt",
                                    skip = 35)
-bing_lexicon1 <- data_frame(word = bing_lexicon1) %>%
-  mutate(sentiment = "positive", lexicon = "bing")
-bing_lexicon2 <- data_frame(word = bing_lexicon2) %>%
-  mutate(sentiment = "negative", lexicon = "bing")
-bing_lexicon <- bind_rows(bing_lexicon1, bing_lexicon2) %>% arrange(word)
+bing_lexicon1 <- data_frame(word = bing_lexicon1, polarity = 1)
+bing_lexicon2 <- data_frame(word = bing_lexicon2, polarity = -1)
+bing_lexicon <- bind_rows(bing_lexicon1, bing_lexicon2) %>%
+  mutate(score = abs(polarity), lexicon = "bing") %>%
+  arrange(word)
 
 AFINN_lexicon <- readr::read_tsv("data-raw/AFINN-111.txt",
                                  col_names = FALSE)
 AFINN_lexicon <- AFINN_lexicon %>%
-  transmute(word = X1, sentiment = NA, score = X2, lexicon = "AFINN")
+  transmute(word = X1, polarity = sign(X2), score = abs(X2) / max(X2), lexicon = "AFINN")
 
 sentiments <- bind_rows(nrc_lexicon, bing_lexicon, AFINN_lexicon) %>%
   filter(!stringr::str_detect(word, "[^[:ascii:]]"))
