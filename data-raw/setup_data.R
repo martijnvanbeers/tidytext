@@ -3,6 +3,20 @@
 
 library(dplyr)
 
+# emotions dataset --------------------------------------------------------
+
+emotions <- readr::read_tsv("data-raw/NRC-emotion-lexicon-wordlevel-alphabetized-v0.92.txt.zip",
+                            col_names = FALSE, skip = 46)
+emotions <- emotions %>% tidyr::spread(X2, X3) %>%
+  rename(word = X1) %>%
+  select(-negative, -positive) %>%
+  tidyr::gather("emotion", "value", -word) %>%
+  filter(value == 1) %>%
+  select(-value) %>%
+  arrange(word)
+readr::write_csv(nrc_emotions, "data-raw/emotions.csv")
+devtools::use_data(emotions, overwrite = TRUE)
+
 # sentiments dataset ------------------------------------------------------
 
 nrc_lexicon <- readr::read_tsv("data-raw/NRC-emotion-lexicon-wordlevel-alphabetized-v0.92.txt.zip",
@@ -10,10 +24,8 @@ nrc_lexicon <- readr::read_tsv("data-raw/NRC-emotion-lexicon-wordlevel-alphabeti
 nrc_lexicon <- nrc_lexicon %>% tidyr::spread(X2, X3) %>%
   rename(word = X1) %>%
   mutate(polarity = ifelse(negative == 1, -1, ifelse(positive == 1, 1, NA))) %>%
-  select(-negative, -positive) %>%
-  tidyr::gather("emotion", "value", -word, -polarity) %>%
-  filter(value == 1) %>%
-  select(-value) %>%
+  select(word, polarity) %>%
+  filter(!is.na(polarity)) %>%
   mutate(score = abs(polarity), lexicon = "nrc") %>%
   arrange(word)
 
