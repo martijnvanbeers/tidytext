@@ -93,9 +93,9 @@ get_sentiments("bing")
 
 janeaustensentiment <- tidy_books %>%
   inner_join(get_sentiments("bing"), by = "word") %>% 
-  count(book, index = linenumber %/% 80, sentiment) %>% 
-  spread(sentiment, n, fill = 0) %>% 
-  mutate(sentiment = positive - negative)
+  mutate(index = linenumber %/% 80) %>%
+  group_by(book, index) %>%
+  summarize(sentiment = sum(polarity))
 
 janeaustensentiment
 ```
@@ -133,10 +133,8 @@ We could find the most negative documents:
 ```{r}
 ap_sentiments <- tidy(AssociatedPress) %>%
   inner_join(get_sentiments("bing"), by = c(term = "word")) %>%
-  count(document, sentiment, wt = count) %>%
-  ungroup() %>%
-  spread(sentiment, n, fill = 0) %>%
-  mutate(sentiment = positive - negative) %>%
+  group_by(document) %>%
+  summarize(sentiment = sum(polarity * count)) %>%
   arrange(sentiment)
 ```
 
